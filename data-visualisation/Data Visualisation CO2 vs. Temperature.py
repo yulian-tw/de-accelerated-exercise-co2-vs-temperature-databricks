@@ -190,6 +190,55 @@ fig.show()
 
 # COMMAND ----------
 
+import plotly.express as px
+from pyspark.sql import functions as f
+
+# display(country_emissions_vs_temp_df) # display only 1000 rows, need repartion/partition to display all
+
+'''
+This section is not doing what the exercise wanted.
+Misunderstanding: TotalEmissions is record at the year, not accumulated.
+'''
+# # 1 jobs
+# # 4 jobs, include plotly
+# country_emissions_vs_temp_pdf = country_emissions_vs_temp_df \
+#     .dropna('all', 1, subset=['TotalEmissions']) \
+#     .filter(f.col("Year") > f.lit(2010)) \
+#     .select("Year", "TotalEmissions", "Country") \
+#     .orderBy(f.desc("TotalEmissions"))
+# display(country_emissions_vs_temp_pdf)
+
+# # 2 jobs
+# # 6 jobs, include plotly
+# country_emissions_vs_temp_pdf = country_emissions_vs_temp_df \
+#     .dropna('all', 1, subset=['TotalEmissions']) \
+#    .filter(f.col("Year") > f.lit(2010)) \
+#    .groupBy("Year", "Country") \
+#    .agg(f.first("TotalEmissions").alias("TotalEmissions")) \
+#    .orderBy(f.desc("TotalEmissions"))
+# display(country_emissions_vs_temp_pdf)
+
+# x-axis: year
+# stacked bar: group By Country, take first 3 ?
+#.select("*").orderBy(f.desc("TotalEmissions")).limit(3).toPandas()
+
+'''
+This section should be doing what the exercise wanted, by ignoring the Year column.
+'''
+# # 2 jobs
+# # 4 jobs, include plotly
+country_emissions_vs_temp_pdf = country_emissions_vs_temp_df \
+    .dropna('all', 1, subset=['TotalEmissions']) \
+    .groupBy("Country") \
+    .agg(f.sum("TotalEmissions").alias("TotalEmissionsAcrossYear")) \
+    .select("TotalEmissionsAcrossYear", "Country") \
+    .orderBy(f.desc("TotalEmissionsAcrossYear")) \
+    .limit(10)
+display(country_emissions_vs_temp_pdf)
+
+fig = px.bar(country_emissions_vs_temp_pdf.toPandas(), x="Country", y="TotalEmissionsAcrossYear")
+fig.write_html('country_emissions_temp_figure.html', auto_open=True)
+fig.show()
 
 
 # COMMAND ----------
